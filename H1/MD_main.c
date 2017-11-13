@@ -14,7 +14,7 @@
 #include "func.h"
 
 #define PI 3.141592653589
-#define nbr_of_timesteps 1000 /* nbr_of_timesteps+1 = power of 2, for best speed */
+#define nbr_of_timesteps 10000 /* nbr_of_timesteps+1 = power of 2, for best speed */
 #define nbr_of_atoms 256
 
 /* Main program */
@@ -24,25 +24,19 @@ int main()
   double timestep;
   double timestep_sq,current_time;
   double m;
-  double kappa;
   int n_cell; // Number of atoms in unit cell
   double cell_length;
+  double tot_length; 
 
   /* declare file variable */
   FILE *energy_file;
 
   /* displacement, velocity and acceleration */
-  double disp_x[nbr_of_atoms];
-  double disp_y[nbr_of_atoms];
-  double disp_z[nbr_of_atoms];
-  double v[nbr_of_atoms][3];	   
-  double a_x[nbr_of_atoms];
-  double a_y[nbr_of_atoms];
-  double a_z[nbr_of_atoms];
+ 	   
   /* Allocating memory for large vectors */
   double (*positions)[3] = malloc(sizeof(double[nbr_of_atoms][3]));
-  double (*positions_0)[3] = malloc(sizeof(double[nbr_of_atoms][3]));
-  double (*a)[3] = malloc(sizeof(double[nbr_of_atoms][3]));
+  double (*v)[3] = malloc(sizeof(double[nbr_of_atoms][3]));
+  double (*F)[3] = malloc(sizeof(double[nbr_of_atoms][3]));
   double *E_pot = malloc(nbr_of_timesteps * sizeof(double));
   double *E_kin = malloc(nbr_of_timesteps * sizeof(double));
 
@@ -50,26 +44,16 @@ int main()
 
   /* Set variables */
   timestep = 0.0001;
-  kappa = 99.86; /*Hopefully correct in the correct units */
   timestep_sq = timestep * timestep;
-  cell_length = 4.03;
+  cell_length = 4.045;
   n_cell = 4;
-  m = 1;
+  m = 27*1.0364*0.0001;
+  tot_length  =  cell_length*n_cell;
 
   /* Initialize lattice*/
   init_fcc(positions, n_cell, cell_length);
   
-  /* Calculate initial displacements */
-  for (int i = 0; i < nbr_of_atoms; i++) {
-    disp_x[i] = positions[i][0]-positions_0[i][0];
-    disp_y[i] = positions[i][1]-positions_0[i][1];
-    disp_z[i] = positions[i][2]-positions_0[i][2];
-  }
-  
-  
-  
-  // Initialiasation for lattice and random deviation in positions
-  init_fcc(positions, n_cell, cell_length); // Initialize lattice
+  // Initialization for lattice and random deviation in positions
   double u;
   const  gsl_rng_type *T; /*  static  info  about  rngs */
   gsl_rng *q; /* rng  instance  */
@@ -84,41 +68,34 @@ int main()
       for(int j = 0; j < 3; j++)
 	{
 	  positions[i][j] += cell_length/20*gsl_rng_uniform(q)-cell_length/20*gsl_rng_uniform(q);
+	  v[i][j] = 0;
 	}
     }
   /* Set initial displacements and velocites */
 
-  /* Calculate initial accelerations based on initial displacements */
-  calc_acc(a_x, disp_x, m, kappa, nbr_of_atoms);
-  calc_acc(a_y, disp_y, m, kappa, nbr_of_atoms);
-  calc_acc(a_z, disp_z, m, kappa, nbr_of_atoms);
-
-  
-  /* Calculate initial energies */
-  E_pot[0] = get_energy_AL(positions, cell_length, nbr_of_atoms);
+  /* Calculate initial accelerations (forces)  based on initial displacements */
+  get_forces_AL(F, positions, tot_length, nbr_of_atoms); 
+  E_pot[0] = get_energy_AL(positions, tot_length, nbr_of_atoms);
   
   /* timesteps according to velocity Verlet algorithm */
   for (int i = 1; i < nbr_of_timesteps + 1; i++) {
     for (int x = 0; x < 3; x++) { // For three space directions 
       for (int j = 0; j < nbr_of_atoms; j++) {
-	a[j][0] = a_x[j];
-	a[j][1] = a_y[j];
-	a[j][2] = a_z[j];
-	v[j][x] += timestep * 0.5 * a[j][x]; // v(t+dt)
+	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+0.5*dt)
 	positions[j][x] += timestep * v[j][x];  // q(t+dt)
-      }
-      calc_acc(a_x, disp_x, m, kappa, nbr_of_atoms); // a(t+dt)
-      calc_acc(a_y, disp_y, m, kappa, nbr_of_atoms); 
-      calc_acc(a_z, disp_z, m, kappa, nbr_of_atoms); 
-      
-      // a(t+dt)
-      for(int j = 0; j < nbr_of_atoms; j++) {
-	v[j][x] += timestep * 0.5 * a[j][x]; // v(t+dt)
-	E_kin[i] += m * v[j][x] * v[j][x]*0.5; 
-      }
-      E_pot[i] = get_energy_AL(positions, cell_length, nbr_of_atoms);
+      }      
     }
+    // a(t+dt)
+    get_forces_AL(F, positions, tot_length, nbr_of_atoms);
+    for(int j = 0; j < nbr_of_atoms; j++) {
+      for(int x = 0; x < 3; x++){
+	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+dt)
+	E_kin[i] += m * v[j][x] * v[j][x]*0.5;
+      }
+    }
+    E_pot[i] = get_energy_AL(positions, tot_length, nbr_of_atoms);
   }
+  
   /* Print displacement and energy data to output file */
   energy_file = fopen("energy.dat","w");
   for (int i = 0; i < nbr_of_timesteps + 1; i++) {
@@ -128,11 +105,12 @@ int main()
   fclose(energy_file);
    
   /* Free allocated memory */
-  gsl_rng_free(q); /*  deallocate  rng */
+  gsl_rng_free(q); 
   free(positions); 
-  free(positions_0);
+  free(v);
   free(E_pot);
-  free(a);
+  free(E_kin);
+  free(F);
   /* 
      Function that generates a fcc lattice in units of [Å]. Nc is the number of 
      primitive cells in each direction and a0 is the lattice parameter. The
