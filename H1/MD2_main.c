@@ -24,7 +24,7 @@ void temp_scale(double v[][3], double n, double T_eq, double tau_T, double T, do
   }
 }
 
-void press_scale(double positions[][3], double P_eq, double p, double tau_P, double kappa_T, double timestep, double n, double tot_volume)
+void press_scale(double positions[][3], double P_eq, double p, double tau_P, double kappa_T, double timestep, double n, double *tot_length)
 {
   double alpha_P = 0;
   alpha_P = 1 - kappa_T * timestep * (P_eq-p)/tau_P;
@@ -34,7 +34,7 @@ void press_scale(double positions[][3], double P_eq, double p, double tau_P, dou
       positions[i][j] = pow(alpha_P,exponent) * positions[i][j];  
     }
   }
-  tot_volume = tot_volume * alpha_P;
+  *tot_length = *tot_length * pow(alpha_P,exponent);
 }
 /* Main program */
 int main()
@@ -86,10 +86,10 @@ int main()
   tot_length = cell_length*n_cell;
   tot_volume = tot_length * tot_length * tot_length;
   T_eq = 500 + 273.15;
-  P_eq = 6.2415 * 0.0000001; // 1 atm är la typ 100 kPa som är typ detta i eV/Å^3 
-  tau_T = timestep * nbr_of_timesteps_eq * 0.01;
-  tau_P = timestep * nbr_of_timesteps_eq * 0.1;
-  kappa_T = 21.7576;
+  P_eq = 6.3242 * 0.0000001; // 1 atm är la typ 100 kPa som är typ detta i eV/Å^3 
+  tau_T = 0.5;//timestep * nbr_of_timesteps_eq * 0.01;
+  tau_P = 0.2;//timestep * 10;
+  kappa_T = 2.2190;
   nbr_of_cells = nbr_of_atoms / n_cell;
   mean_E_kin = 0;
  
@@ -121,7 +121,7 @@ int main()
   E_pot[0] = get_energy_AL(positions, tot_length, nbr_of_atoms);
 
   /* Equilibration of the system */
-  for (int i = 1; i < nbr_of_timesteps_eq + 1; i++) {
+  for (int i = 0; i < nbr_of_timesteps_eq; i++) {
     for (int x = 0; x < 3; x++) { // For three space directions 
       for (int j = 0; j < nbr_of_atoms; j++) {
 	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+0.5*dt)
@@ -137,11 +137,13 @@ int main()
       }
     }
     temp[i] = 2 / (3 * nbr_of_atoms * k_B) * E_kin_eq[i];
+    W = get_virial_AL(positions, tot_length, nbr_of_atoms);
+    press[i] = (W + nbr_of_atoms * k_B * temp[i]) / ( tot_length * tot_length * tot_length);
+    
     temp_scale(v, nbr_of_atoms, T_eq, tau_T, temp[i], timestep);
-    W = get_virial_AL(positions, cell_length, nbr_of_atoms);
-    press[i] = (W + nbr_of_atoms * k_B * temp[i]) / (tot_volume);
     printf("%e\n",press[i]);
-    press_scale(positions, P_eq, press[i], tau_P, kappa_T, timestep, nbr_of_atoms, tot_volume);
+    press_scale(positions, P_eq, press[i], tau_P, kappa_T, timestep, nbr_of_atoms, &tot_length);
+    tot_volume = tot_length * tot_length * tot_length;
   }
   /* Reset the matrixes */
   E_kin[0] = E_kin_eq[nbr_of_timesteps_eq - 1];
