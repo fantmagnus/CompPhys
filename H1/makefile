@@ -4,8 +4,8 @@ CFLAGS = -O3 -Wall -std=c99
 LIBS = -lm -lgsl -lgslcblas
 
 HEADERS = func.h initfcc.h alpotential.h
-OBJECTS = func.o initfcc.o alpotential.o MD_main.o
-PROGRAM = MD
+OBJECTS = func.o initfcc.o alpotential.o MD2_main.o
+PROGRAM = MD2
 
 %.o: %.c $(HEADERS)
 	$(CC) -c -o $@ $< $(CFLAGS)
