@@ -9,7 +9,7 @@
 
 #define PI 3.141592653589
 #define k_B 0.000086173303
-#define nbr_of_timesteps_eq 10000 /* nbr_of_timesteps+1 = power of 2, for best speed */
+#define nbr_of_timesteps_eq 5000 /* nbr_of_timesteps+1 = power of 2, for best speed */
 #define nbr_of_timesteps 100
 #define nbr_of_atoms 256
 
@@ -19,22 +19,20 @@ void temp_scale(double v[][3], double n, double T_eq, double tau_T, double T, do
   alpha_T = 1 + timestep/tau_T*(T_eq - T)/T;
   for(int i = 0; i < n; i ++) {
     for( int j = 0; j < 3; j++ ) {
-      v[i][j] = alpha_T * v[i][j];  
+      v[i][j] = sqrt(alpha_T) * v[i][j];  
     }
   }
 }
 
-void press_scale(double positions[][3], double P_eq, double p, double tau_P, double kappa_T, double timestep, double n, double *tot_length)
+void press_scale(double positions[][3], double P_eq, double P, double tau_P, double kappa_T, double timestep, double n, double *tot_length)
 {
-  double alpha_P;
-  alpha_P = 1 - kappa_T * timestep * (P_eq-p)/tau_P;
-  printf("%f\n", cbrt(alpha_P));
-  for(int i = 0; i < n; i ++) {
-    for( int j = 0; j < 3; j++ ) {
-      positions[i][j] = cbrt(alpha_P) * positions[i][j];  
+  double alpha_P = 1 - kappa_T*timestep*(P_eq - P)/tau_P;
+  for(int i = 0; i < n; i++) {
+    for(int j = 0; j < 3; j++) {
+      positions[i][j] = cbrt(alpha_P) * positions[i][j];
     }
   }
-  *tot_length = *tot_length * cbrt(alpha_P);
+  *tot_length = cbrt(alpha_P)*(*tot_length);
 }
 /* Main program */
 int main()
@@ -74,11 +72,12 @@ int main()
   double *E_kin = malloc(nbr_of_timesteps * sizeof(double));
   double *temp = malloc(nbr_of_timesteps_eq * sizeof(double));
   double *press = malloc(nbr_of_timesteps_eq * sizeof(double));
+
   
-  
+ 
 
   /* Set variables */
-  timestep = 0.001;
+  timestep = 0.001; // 0.001 seems to work quite well
   timestep_sq = timestep * timestep;
   cell_length = 4.045;
   n_cell = 4;
@@ -88,7 +87,7 @@ int main()
   T_eq = 500 + 273.15;
   P_eq = 6.3242 * 0.0000001; // 1 atm är la typ 100 kPa som är typ detta i eV/Å^3 
   tau_T = 0.5;//timestep * nbr_of_timesteps_eq * 0.01;
-  tau_P = 0.02;//timestep * 10;
+  tau_P = timestep;//timestep * 10;
   kappa_T = 2.2190;
   nbr_of_cells = nbr_of_atoms / n_cell;
   mean_E_kin = 0;
@@ -97,7 +96,7 @@ int main()
   /* Initialize lattice*/
   init_fcc(positions, n_cell, cell_length);
   
-  // Initialization for lattice and random deviation in positions
+  // Random nbr generator
   double u;
   const  gsl_rng_type *T; /*  static  info  about  rngs */
   gsl_rng *q; /* rng  instance  */
@@ -107,6 +106,8 @@ int main()
   gsl_rng_set(q,time(NULL)); /*  Initialize  rng */
   u = gsl_rng_uniform(q); /*  generate  random  number
 			      (repeatable) */
+
+  // Deviate lattice and set initial velocities to zero
   for(int i = 0; i < nbr_of_atoms; i++)
     {
       for(int j = 0; j < 3; j++)
@@ -116,9 +117,7 @@ int main()
 	}
     }
   
-  /* Calculate initial accelerations (forces)  based on initial displacements */
-  get_forces_AL(F, positions, tot_length, nbr_of_atoms); 
-  E_pot[0] = get_energy_AL(positions, tot_length, nbr_of_atoms);
+  W = 0; 
 
   /* Equilibration of the system */
   for (int i = 0; i < nbr_of_timesteps_eq + 1; i++) {
@@ -138,26 +137,23 @@ int main()
     }
     temp[i] = 2 / (3 * nbr_of_atoms * k_B) * E_kin_eq[i];
     W = get_virial_AL(positions, tot_length, nbr_of_atoms);
-    press[i] = (W + nbr_of_atoms * k_B * temp[i]) / ( tot_length * tot_length * tot_length);
-    
+    press[i] = (nbr_of_atoms * k_B * temp[i] + W )/( pow( tot_length , 3.0 ) );
     temp_scale(v, nbr_of_atoms, T_eq, tau_T, temp[i], timestep);
-    //printf("%e\n",press[i]);
     press_scale(positions, P_eq, press[i], tau_P, kappa_T, timestep, nbr_of_atoms, &tot_length);
-    tot_volume = tot_length * tot_length * tot_length;
   }
   /* Reset the matrixes */
   E_kin[0] = E_kin_eq[nbr_of_timesteps_eq - 1];
   E_pot[0] = get_energy_AL(positions, tot_length, nbr_of_atoms);
   
   W = 0; 
-
+  printf("Equilibration complete. W = %f\n", W);
   /* Simulation */
   /* timesteps according to velocity Verlet algorithm */
   for (int i = 1; i < nbr_of_timesteps + 1; i++) {
     for (int x = 0; x < 3; x++) { // For three space directions 
       for (int j = 0; j < nbr_of_atoms; j++) {
 	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+0.5*dt)
-	positions[j][x] += timestep * v[j][x];  // q(t+dt)
+ 	positions[j][x] += timestep * v[j][x];  // q(t+dt)
       }      
     }
     // a(t+dt)
@@ -169,7 +165,7 @@ int main()
       }
     }
     E_pot[i] = get_energy_AL(positions, tot_length, nbr_of_atoms);
-    W += get_virial_AL(positions, cell_length, nbr_of_atoms);
+    W += get_virial_AL(positions, cell_length, nbr_of_atoms)/nbr_of_timesteps;
   }
 
   for(int i = 0; i < nbr_of_timesteps; i++){
@@ -178,7 +174,7 @@ int main()
 
   mean_T = 2*mean_E_kin/(3*k_B*nbr_of_atoms);
   printf("T =  %f K\n", mean_T); 
-  mean_P = (nbr_of_atoms*k_B*mean_T + W/nbr_of_timesteps)/(tot_volume);
+  mean_P = (nbr_of_atoms*k_B*mean_T +W)/(pow( tot_length , 3.0 ));
   printf("P = %f\n", mean_P);
   
   /* Print temperature, pressure and and energy data to output file */
