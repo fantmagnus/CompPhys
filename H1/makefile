@@ -3,8 +3,8 @@ CC = gcc
 CFLAGS = -O3 -Wall -std=c99
 LIBS = -lm -lgsl -lgslcblas
 
-HEADERS = func.h initfcc.h alpotential.h
-OBJECTS = func.o initfcc.o alpotential.o MD2_main.o
+HEADERS = initfcc.h alpotential.h
+OBJECTS = initfcc.o alpotential.o MD2_main.o
 PROGRAM = MD2
 
 %.o: %.c $(HEADERS)
