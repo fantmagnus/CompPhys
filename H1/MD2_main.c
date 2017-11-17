@@ -9,8 +9,8 @@
 
 #define PI 3.141592653589
 #define k_B 0.000086173303
-#define nbr_of_timesteps_eq 5000 /* nbr_of_timesteps+1 = power of 2, for best speed */
-#define nbr_of_timesteps 100
+#define nbr_of_timesteps_eq 10000 /* nbr_of_timesteps+1 = power of 2, for best speed */
+#define nbr_of_timesteps 10000
 #define nbr_of_atoms 256
 
 void temp_scale(double v[][3], double n, double T_eq, double tau_T, double T, double timestep)
@@ -59,7 +59,8 @@ int main()
   /* declare file variable */
   FILE *energy_file;
   FILE *temp_file;
-  FILE *press_file; 
+  FILE *press_file;
+  FILE *traj_file; 
 
   /* displacement, velocity and acceleration */
  	   
@@ -72,6 +73,8 @@ int main()
   double *E_kin = malloc(nbr_of_timesteps * sizeof(double));
   double *temp = malloc(nbr_of_timesteps_eq * sizeof(double));
   double *press = malloc(nbr_of_timesteps_eq * sizeof(double));
+  double *distance = malloc(nbr_of_timesteps * sizeof(double));
+
 
   
  
@@ -79,16 +82,16 @@ int main()
   /* Set variables */
   timestep = 0.001; // 0.001 seems to work quite well
   timestep_sq = timestep * timestep;
-  cell_length = 4.045;
-  n_cell = 4;
-  m = 27*1.0364*0.0001;
+  cell_length = 4.045; //Lattice parameter for aluminium in Ångström 
+  n_cell = 4; //Size of the cell
+  m = 27*1.0364*0.0001; //Mass of aluminium 
   tot_length = cell_length * n_cell;
   tot_volume = tot_length * tot_length * tot_length;
-  T_eq = 500 + 273.15;
-  P_eq = 6.3242 * 0.0000001; // 1 atm är la typ 100 kPa som är typ detta i eV/Å^3 
-  tau_T = 0.5;//timestep * nbr_of_timesteps_eq * 0.01;
-  tau_P = timestep;//timestep * 10;
-  kappa_T = 2.2190;
+  T_eq = 900 + 273.15; //500 Celsius in Kelvin
+  P_eq = 6.3242e-7; //1 atm is approximately 100 kPa which in atomic units is eV/Å^3 
+  tau_T = 0.5;//Gives a nice temperature equilibration;
+  tau_P = timestep*2;//Gives a nice pressure equilibration;
+  kappa_T = 2.2190; //1.38GPae-10 in atomic units 
   nbr_of_cells = nbr_of_atoms / n_cell;
   mean_E_kin = 0;
  
@@ -116,8 +119,9 @@ int main()
 	  v[i][j] = 0;
 	}
     }
-  
-  W = 0; 
+  for(int i = 0; i < 3; i++) {
+    printf("%f \t", positions[255][i]);
+  }
 
   /* Equilibration of the system */
   for (int i = 0; i < nbr_of_timesteps_eq + 1; i++) {
@@ -140,6 +144,10 @@ int main()
     press[i] = (nbr_of_atoms * k_B * temp[i] + W )/( pow( tot_length , 3.0 ) );
     temp_scale(v, nbr_of_atoms, T_eq, tau_T, temp[i], timestep);
     press_scale(positions, P_eq, press[i], tau_P, kappa_T, timestep, nbr_of_atoms, &tot_length);
+    if(i > 5000) {
+      T_eq = 690 + 273.15;
+    }
+      
   }
   /* Reset the matrixes */
   E_kin[0] = E_kin_eq[nbr_of_timesteps_eq - 1];
@@ -147,9 +155,10 @@ int main()
   
   W = 0; 
   printf("Equilibration complete. W = %f\n", W);
+
   /* Simulation */
   /* timesteps according to velocity Verlet algorithm */
-  for (int i = 1; i < nbr_of_timesteps + 1; i++) {
+  for (int i = 0; i < nbr_of_timesteps + 1; i++) {
     for (int x = 0; x < 3; x++) { // For three space directions 
       for (int j = 0; j < nbr_of_atoms; j++) {
 	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+0.5*dt)
@@ -165,13 +174,17 @@ int main()
       }
     }
     E_pot[i] = get_energy_AL(positions, tot_length, nbr_of_atoms);
-    W += get_virial_AL(positions, cell_length, nbr_of_atoms)/nbr_of_timesteps;
+    for(int j = 0; j < 3; j ++) {
+      distance[i] += sqrt(positions[4][j]*positions[4][j]);
+    }
   }
 
   for(int i = 0; i < nbr_of_timesteps; i++){
     mean_E_kin += E_kin[i]/nbr_of_timesteps;
   }
 
+  //Calculate the temperature and the pressure
+  W = get_virial_AL(positions, tot_length, nbr_of_atoms);
   mean_T = 2*mean_E_kin/(3*k_B*nbr_of_atoms);
   printf("T =  %f K\n", mean_T); 
   mean_P = (nbr_of_atoms*k_B*mean_T +W)/(pow( tot_length , 3.0 ));
@@ -181,9 +194,11 @@ int main()
   energy_file = fopen("energy.dat","w");
   temp_file = fopen("temp.dat","w");
   press_file = fopen("press.dat","w");
+  traj_file = fopen("traj.dat","w");
   for (int i = 0; i < nbr_of_timesteps + 1; i++) {
     current_time = i * timestep;
     fprintf(energy_file, "%.4f \t %e \t %e \t %e \n", current_time, E_pot[i], E_kin[i], E_pot[i]+E_kin[i]);
+    fprintf(traj_file, "%.4f \t %e \n", current_time, distance[i]);
   }
   fclose(energy_file);
   for (int i = 0; i < nbr_of_timesteps_eq + 1; i++) {
@@ -191,6 +206,7 @@ int main()
   fprintf(temp_file, "%.4f \t %e \n", current_time, temp[i]);
   fprintf(press_file, "%.4f \t %e \n", current_time, press[i]);
   }
+  
   fclose(temp_file);
   fclose(press_file); 
   /* Free allocated memory */

@@ -11,7 +11,6 @@
 #include <time.h>
 #include "initfcc.h"
 #include "alpotential.h"
-#include "func.h"
 
 #define PI 3.141592653589
 #define nbr_of_timesteps 10000 /* nbr_of_timesteps+1 = power of 2, for best speed */
@@ -43,7 +42,7 @@ int main()
   
 
   /* Set variables */
-  timestep = 0.0001;
+  timestep = 0.001;
   timestep_sq = timestep * timestep;
   cell_length = 4.045;
   n_cell = 4;
@@ -75,10 +74,9 @@ int main()
 
   /* Calculate initial accelerations (forces)  based on initial displacements */
   get_forces_AL(F, positions, tot_length, nbr_of_atoms); 
-  E_pot[0] = get_energy_AL(positions, tot_length, nbr_of_atoms);
   
   /* timesteps according to velocity Verlet algorithm */
-  for (int i = 1; i < nbr_of_timesteps + 1; i++) {
+  for (int i = 0; i < nbr_of_timesteps + 1; i++) {
     for (int x = 0; x < 3; x++) { // For three space directions 
       for (int j = 0; j < nbr_of_atoms; j++) {
 	v[j][x] += timestep * 0.5 * F[j][x]/m; // v(t+0.5*dt)
