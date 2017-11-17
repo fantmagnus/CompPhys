@@ -54,7 +54,10 @@ int main()
   double nbr_of_cells;
   double mean_T;
   double mean_P;
-  double mean_E_kin; 
+  double mean_E_kin;
+  double mean_dE_sq;
+  double c_V;
+  double c_term; 
 
   /* declare file variable */
   FILE *energy_file;
@@ -74,7 +77,7 @@ int main()
   double *temp = malloc(nbr_of_timesteps_eq * sizeof(double));
   double *press = malloc(nbr_of_timesteps_eq * sizeof(double));
   double *distance = malloc(nbr_of_timesteps * sizeof(double));
-
+  double *dE = malloc(nbr_of_timesteps * sizeof(double));
 
   
  
@@ -87,14 +90,16 @@ int main()
   m = 27*1.0364*0.0001; //Mass of aluminium 
   tot_length = cell_length * n_cell;
   tot_volume = tot_length * tot_length * tot_length;
-  T_eq = 900 + 273.15; //500 Celsius in Kelvin
+  T_eq = 500 + 273.15; //500 Celsius in Kelvin
   P_eq = 6.3242e-7; //1 atm is approximately 100 kPa which in atomic units is eV/Å^3 
   tau_T = 0.5;//Gives a nice temperature equilibration;
   tau_P = timestep*2;//Gives a nice pressure equilibration;
   kappa_T = 2.2190; //1.38GPae-10 in atomic units 
   nbr_of_cells = nbr_of_atoms / n_cell;
   mean_E_kin = 0;
- 
+  mean_dE_sq = 0;
+  c_V = 0;
+  c_term = 0;
 
   /* Initialize lattice*/
   init_fcc(positions, n_cell, cell_length);
@@ -144,9 +149,9 @@ int main()
     press[i] = (nbr_of_atoms * k_B * temp[i] + W )/( pow( tot_length , 3.0 ) );
     temp_scale(v, nbr_of_atoms, T_eq, tau_T, temp[i], timestep);
     press_scale(positions, P_eq, press[i], tau_P, kappa_T, timestep, nbr_of_atoms, &tot_length);
-    if(i > 5000) {
+    /*if(i > 5000) {
       T_eq = 690 + 273.15;
-    }
+      }*/
       
   }
   /* Reset the matrixes */
@@ -179,10 +184,12 @@ int main()
     }
   }
 
+
   for(int i = 0; i < nbr_of_timesteps; i++){
     mean_E_kin += E_kin[i]/nbr_of_timesteps;
   }
 
+  
   //Calculate the temperature and the pressure
   W = get_virial_AL(positions, tot_length, nbr_of_atoms);
   mean_T = 2*mean_E_kin/(3*k_B*nbr_of_atoms);
@@ -190,6 +197,13 @@ int main()
   mean_P = (nbr_of_atoms*k_B*mean_T +W)/(pow( tot_length , 3.0 ));
   printf("P = %f\n", mean_P);
   
+  for(int i = 0; i < nbr_of_timesteps; i++) {
+    dE[i] = E_kin[i+1]-E_kin[i];
+    mean_dE_sq += dE[i]*dE[i]/nbr_of_timesteps; 
+  }
+  c_term = 1-2/(3*nbr_of_atoms*k_B*k_B*mean_T*mean_T)*mean_dE_sq;
+  c_V = 3*nbr_of_atoms*k_B/(2*c_term);
+  printf("cV is %f\n", c_V);
   /* Print temperature, pressure and and energy data to output file */
   energy_file = fopen("energy.dat","w");
   temp_file = fopen("temp.dat","w");
