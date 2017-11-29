@@ -59,5 +59,3 @@ int main()  {
   free(eta);
   return 0; 
 }
-
-
