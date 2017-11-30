@@ -10,7 +10,8 @@ double distance(double r1[3], double r2[3]) {
 }
 
 double norm(double r[3]) {
-  return 1.0;
+  double norm = r[0]*r[0]+r[1]*r[1]+r[2]*r[2];
+  return sqrt(norm);
 }
 
 double calc_E(double r1[3], double r2[3], double alpha) {
