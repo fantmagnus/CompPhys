@@ -6,7 +6,8 @@
 #define PI 3.14159265359
 
 double distance(double r1[3], double r2[3]) {
-  return 1;
+  double dist = sqrt(pow(r2[0]-r1[0],2)+ pow(r2[1]-r1[1],2)+pow(r2[2]-r1[2],2));
+  return dist;
 }
 
 double norm(double r[3]) {
@@ -27,8 +28,10 @@ double calc_E(double r1[3], double r2[3], double alpha) {
   return 1;
 }
 
-double weightfunc() {
-  return 1;
+double weightfunc(double r1[3], double r2[3], double alpha) {
+  double r12 = distance(r1, r2);
+  double psi_T = exp(-2*norm(r1))*exp(-2*norm(r2))*exp(0.5*r12/(1+alpha*r12));
+  return abs(psi_T) * abs(psi_T);
 }
 
 int main () {
