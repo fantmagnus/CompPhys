@@ -77,16 +77,16 @@ int main () {
 
   /*Variable declarations */
   int i,j,k;
-  int N = 1e6; 
+  int N = 1e7; 
   int count = 0;
   int progress = 0;
   int nbr_skipped_states = 1e4;
   double alpha = 0.1;
-  int n_alpha = 100;
+  int n_alpha = 1;//100;
   double delta = 1;
   double r1[3], r2[3];
   double E_sum = 0;
-  int mod_factor = 1000000;
+  int mod_factor = 1000;
   int k_span = 300;
   double mean_E=0;
   double mean_sq_E=0;
@@ -120,8 +120,15 @@ int main () {
   // May be redunadant
 
   for (j=0; j < n_alpha; j++) { // for different alphas
-    alpha = 0.05+0.20/(n_alpha-1)*j;
+    alpha = 0.1;// 0.05+0.20/(n_alpha-1)*j;
 
+    /* Reset */
+    E_sum = 0;
+    progress=0;
+    printf("\r");
+    mean_E = 0;
+    mean_sq_E = 0;
+    
     /* Throw away first states */
     for (i = 1; i < nbr_skipped_states+1; i++){
       next_state(r1, r2, alpha, delta, &count, q);
@@ -139,11 +146,13 @@ int main () {
       next_state(r1, r2, alpha, delta, &count, q);
       E[i] = calc_E(r1, r2, alpha);
       E_sum += E[i];
-      // fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
-      //fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
-      //fprintf(energy_file,"%.7f\n", E[i]);
+      if (n_alpha == 1){ // For fixed alpha simulations
+	fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
+	fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
+	fprintf(energy_file,"%.7f\n", E[i]);
+      }
       if (i%((N-1)/100) == 0){
-	printf("\rProgress: Simulation %d of %d %d %% done  ",j,n_alpha,progress++); // Print progress of main loop
+	printf("\rProgress: Simulation %d of %d %d %% done  ",j+1,n_alpha,progress++); // Print progress of main loop
 	fflush(stdout);
       }
       mean_E += E[i]/N;
@@ -151,40 +160,30 @@ int main () {
     }
    /* Calculate mean and variance */
     var_E = mean_sq_E - mean_E*mean_E;
-    var_I = (double)n_s*var_E/(double)N;
-    
-    fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/N, var_I);
-    /* Reset */
-    E_sum = 0;
-    progress=0;
-    printf("\r");
-    mean_E = 0;
-    mean_sq_E = 0;
-
+    var_I = n_s*var_E/N;
+    if (n_alpha > 1){
+      fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/N, var_I);
+    }
   }
   
   fclose(energy_file);
   fclose(corr_file);
   fclose(dist_file);
   /* Error estimate */
-  /* Calculate mean and variance */
-    for(i = 0; i < N; i++) {
-      mean_E += E[i]/N;
-      mean_sq_E += E[i]*E[i]/N; 
-  }
-    /* Calculate correlation function */
-    for(k = 0; k < k_span; k++) {
-      for(i = 0; i < N-k; i++) {
-	E_ik += E[i+k]*E[i];
-      }
-      E_ik = E_ik/(N-k);
-      Phi[k] = (E_ik - mean_E*mean_E)/(mean_sq_E - mean_E*mean_E);
-      fprintf(corrfunc_file, "%i \t %.6f \n", k, Phi[k]);
-    }
-    fclose(corrfunc_file);
 
-    /* Calcualte statistical inefficiency with block averaging */
-    for (b = 1; b < n_B; b++){
+  /* Calculate correlation function */
+  for(k = 0; k < k_span; k++) {
+    for(i = 0; i < N-k; i++) {
+      E_ik += E[i+k]*E[i];
+    }
+    E_ik = E_ik/(N-k);
+    Phi[k] = (E_ik - mean_E*mean_E)/(mean_sq_E - mean_E*mean_E);
+    fprintf(corrfunc_file, "%i \t %.6f \n", k, Phi[k]);
+  }
+  fclose(corrfunc_file);
+
+  /* Calcualte statistical inefficiency with block averaging */
+  for (b = 1; b < n_B; b++){
     B = b*10; 
     j_span = (int)N/B;
     double *F = malloc(j_span * sizeof (double));
