@@ -73,10 +73,17 @@ double calc_x(double r1[3], double r2[3]) {
   return x;
 }
 
+double dPhi(double r1[3], double r2[3], double alpha) {
+  double r12 = distance(r1, r2);
+  double dPhi = -r12*r12*pow(1+alpha*r12, -2.0)/2;
+  return dPhi; 
+}
+
 int main () {
 
   /*Variable declarations */
   int i,j,k;
+  int dyn = 1; //For dynamic alpha
   int N = 1e7; 
   int count = 0;
   int progress = 0;
@@ -101,6 +108,13 @@ int main () {
   double mean_sq_F=0;
   int n_s=12;
   double var_E, var_I;
+  double inv_Hess = 1;
+  double beta = 0.8;
+  double meanf_E;
+  double meanf_div;
+  double meanf_Ediv;
+  double div_sum = 0;
+  double Ediv_sum = 0; 
  
   
   /* gsl random number setup */ 
@@ -127,6 +141,9 @@ int main () {
     progress=0;
     printf("\r");
     mean_E = 0;
+    meanf_E = 0;
+    meanf_Ediv = 0;
+    meanf_div = 0;
     mean_sq_E = 0;
     
     /* Throw away first states */
@@ -134,7 +151,7 @@ int main () {
       next_state(r1, r2, alpha, delta, &count, q);
       // fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
       if (i%mod_factor == 0){
-	//printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
+	printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
       }
     }
 
@@ -146,6 +163,8 @@ int main () {
       next_state(r1, r2, alpha, delta, &count, q);
       E[i] = calc_E(r1, r2, alpha);
       E_sum += E[i];
+      div_sum += dPhi(r1, r2, alpha);
+      Ediv_sum += E[i]*dPhi(r1, r2, alpha);
       if (n_alpha == 1){ // For fixed alpha simulations
 	fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
 	fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
@@ -157,6 +176,13 @@ int main () {
       }
       mean_E += E[i]/N;
       mean_sq_E += E[i]*E[i]/N;
+      if(dyn > 0) {
+	meanf_E = E_sum/(i+1);
+	meanf_div = div_sum/(i+1);
+	meanf_Ediv = Ediv_sum/(i+1);
+	alpha = alpha - inv_Hess*pow((i+1),-beta)*2*(meanf_Ediv - meanf_div*meanf_E);
+	
+      }
     }
    /* Calculate mean and variance */
     var_E = mean_sq_E - mean_E*mean_E;
@@ -209,6 +235,7 @@ int main () {
   printf("Distance 2: %.4f\n",norm(r2));
   printf("E should be about -3 a.u. \n");
   printf("E is %f a.u. \n", E_sum/N);
+  printf("Alpha is %f. \n", alpha);
   printf("The stepping percentage is %.0f%%\n",100*(double)count/N);
 
   /* Free memory */
