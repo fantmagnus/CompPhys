@@ -76,12 +76,13 @@ double calc_x(double r1[3], double r2[3]) {
 int main () {
 
   /*Variable declarations */
-  int i,k;
-  int N = 1e7; 
+  int i,j,k;
+  int N = 1e6; 
   int count = 0;
   int progress = 0;
-  int nbr_skipped_states = 1e7;
+  int nbr_skipped_states = 1e4;
   double alpha = 0.1;
+  int n_alpha = 100;
   double delta = 1;
   double r1[3], r2[3];
   double E_sum = 0;
@@ -92,7 +93,15 @@ int main () {
   double E_ik=0; 
   double Phi[k_span];
   double *E = malloc((N) * sizeof (double));
-  
+  int B, b;
+  int j_span;
+  int n_B = 500;
+  double s[n_B];
+  double mean_F=0;
+  double mean_sq_F=0;
+  int n_s=12;
+  double var_E, var_I;
+ 
   
   /* gsl random number setup */ 
   const gsl_rng_type*T;
@@ -105,38 +114,58 @@ int main () {
   FILE *dist_file = fopen("dist.dat","w");
   FILE *corr_file = fopen("corr.dat","w");
   FILE *corrfunc_file = fopen("phi.dat","w");
-
+  FILE *energy_file = fopen("E.dat","w");
+  FILE *block_file = fopen("S.dat","w");
   /* Set initial state */
   // May be redunadant
 
+  for (j=0; j < n_alpha; j++) { // for different alphas
+    alpha = 0.05+0.20/(n_alpha-1)*j;
 
-  
-  /* Throw away first states */
-  for (i = 1; i < nbr_skipped_states+1; i++){
-    next_state(r1, r2, alpha, delta, &count, q);
-    if (i%mod_factor == 0){
-      printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
+    /* Throw away first states */
+    for (i = 1; i < nbr_skipped_states+1; i++){
+      next_state(r1, r2, alpha, delta, &count, q);
+      // fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
+      if (i%mod_factor == 0){
+	//printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
+      }
     }
-  }
-  printf("%.4f\t %.4f\t %.4f\t %.4f\n",r1[0],r1[1],r1[2],norm(r1));
-  printf("%.4f\t %.4f\t %.4f\t %.4f\n",r2[0],r2[1],r2[2],norm(r2));
-  count = 0;
+
+    count = 0;
   
-  /* Step in configuration space */
-  for (i = 0; i < N; i++){
-    /* Metropolis algorithm */
-    next_state(r1, r2, alpha, delta, &count, q);
-    E[i] = calc_E(r1, r2, alpha);
-    E_sum += E[i];
-    fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
-    fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
-
-    if (i%((N-1)/100) == 0){
-      printf("\rProgress: %d %% done",progress++); // Print progress of main loop
-      fflush(stdout);
+    /* Step in configuration space */
+    for (i = 0; i < N; i++){
+      /* Metropolis algorithm */
+      next_state(r1, r2, alpha, delta, &count, q);
+      E[i] = calc_E(r1, r2, alpha);
+      E_sum += E[i];
+      // fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
+      //fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
+      //fprintf(energy_file,"%.7f\n", E[i]);
+      if (i%((N-1)/100) == 0){
+	printf("\rProgress: Simulation %d of %d %d %% done  ",j,n_alpha,progress++); // Print progress of main loop
+	fflush(stdout);
+      }
+      mean_E += E[i]/N;
+      mean_sq_E += E[i]*E[i]/N;
     }
-  }
+   /* Calculate mean and variance */
+    var_E = mean_sq_E - mean_E*mean_E;
+    var_I = (double)n_s*var_E/(double)N;
+    
+    fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/N, var_I);
+    /* Reset */
+    E_sum = 0;
+    progress=0;
+    printf("\r");
+    mean_E = 0;
+    mean_sq_E = 0;
 
+  }
+  
+  fclose(energy_file);
+  fclose(corr_file);
+  fclose(dist_file);
   /* Error estimate */
   /* Calculate mean and variance */
     for(i = 0; i < N; i++) {
@@ -153,13 +182,35 @@ int main () {
       fprintf(corrfunc_file, "%i \t %.6f \n", k, Phi[k]);
     }
     fclose(corrfunc_file);
+
+    /* Calcualte statistical inefficiency with block averaging */
+    for (b = 1; b < n_B; b++){
+    B = b*10; 
+    j_span = (int)N/B;
+    double *F = malloc(j_span * sizeof (double));
+    for (j = 0; j < j_span; j++){
+      for (i = 0; i < B; i++){
+	F[j] += E[j*B + i];
+      }
+      F[j] = F[j]/B;
+      mean_F += F[j]/j_span;
+      mean_sq_F += F[j]*F[j]/j_span;
+    }
+    s[b] = B*(mean_sq_F - mean_F*mean_F)/(mean_sq_E - mean_E*mean_E);
+    fprintf(block_file, "%i \t %.6f \n", B, s[b]);
+    free(F);
+    mean_F = 0;
+    mean_sq_F = 0;
+  }
+  fclose(block_file);
+ 
     
-    
+  printf("\n");
   printf("Distance 1: %.4f\n",norm(r1));
   printf("Distance 2: %.4f\n",norm(r2));
   printf("E should be about -3 a.u. \n");
   printf("E is %f a.u. \n", E_sum/N);
-  printf("The stepping procentage is %.0f%%\n",100*(double)count/N);
+  printf("The stepping percentage is %.0f%%\n",100*(double)count/N);
 
   /* Free memory */
   free(E);
