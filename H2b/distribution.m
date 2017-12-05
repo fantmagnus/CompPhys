@@ -11,12 +11,28 @@ rho_vo=Z_vo^3*4*r.^2.*exp(-2*Z_vo*r);
 
 figure(1)
 hold on
+[h,x] = hist(data,1000);
+h=h/trapz(x,h);
+bar(x,h)
 plot(r,rho_cf,'b')
 plot(r,rho_vo,'r')
-[h,x] = hist(data,1000);
-bar(x,h/max(h))
+
 
 xlabel('Distance to nucleus [a.u.]','interpreter','LaTeX')
 legend('Sampled data','Z=2','Z=27/16')
 
-trapz(x,h/max(h)) % Should be close to one
+%% Dist of x
+clc, close all
+data = importdata('corr.dat');
+
+figure(2)
+hold on
+[h,x] = hist(data,800);
+h=h/trapz(x,h);
+bar(x,h)
+
+
+xlabel('$x=\cos\theta$','interpreter','LaTeX')
+
+
+

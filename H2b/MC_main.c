@@ -5,16 +5,19 @@
 #include <math.h>
 #define PI 3.14159265359
 
+/* Returns the distance between two points in space */
 double distance(double r1[3], double r2[3]) {
   double dist = sqrt(pow(r2[0]-r1[0],2)+ pow(r2[1]-r1[1],2)+pow(r2[2]-r1[2],2));
   return dist;
 }
 
+/* Returns the length of a vector */
 double norm(double r[3]) {
   double norm = r[0]*r[0]+r[1]*r[1]+r[2]*r[2];
   return sqrt(norm);
 }
 
+/* Returns local energy for a certain configuration and alpha */
 double calc_E(double r1[3], double r2[3], double alpha) {
   double r12 = distance(r1, r2);
   double r1_hat[3], r2_hat[3], r_hat[3], r[3];
@@ -31,6 +34,7 @@ double calc_E(double r1[3], double r2[3], double alpha) {
   return E_L;
 }
 
+/* Returns value of the trial function for a certain configuration and alpha */
 double weightfunc(double r1[3], double r2[3], double alpha) {
   double r12 = distance(r1, r2);
   double psi_t = exp(-2*norm(r1))*exp(-2*norm(r2))*exp(0.5*r12/(1+alpha*r12));
@@ -38,6 +42,7 @@ double weightfunc(double r1[3], double r2[3], double alpha) {
   return abs_psi_t * abs_psi_t;
 }
 
+/* Determines the next configuration */
 void next_state(double r1[3], double r2[3], double alpha, double delta, int *count, gsl_rng *q){
   /* create trial step */
   double u1, u2; 
@@ -63,6 +68,7 @@ void next_state(double r1[3], double r2[3], double alpha, double delta, int *cou
   }
 }
 
+/* Returns cosine of angle between two vectors */
 double calc_x(double r1[3], double r2[3]) {
   double scal=0;
   for (int i = 0; i < 3; i++){
@@ -73,28 +79,29 @@ double calc_x(double r1[3], double r2[3]) {
   return x;
 }
 
+/*Return derivative of logarithm of the trial function for a certain configuration and alpha */
 double dPhi(double r1[3], double r2[3], double alpha) {
   double r12 = distance(r1, r2);
   double dPhi = -r12*r12*pow(1+alpha*r12, -2.0)/2;
   return dPhi; 
 }
 
-int main () {
 
+int main () {
   /*Variable declarations */
   int i,j,k;
-  int dyn = 1; //For dynamic alpha
-  int N = 1e7; 
+  int dyn = 0; //For dynamic alpha
+  int N = 1e6; 
   int count = 0;
   int progress = 0;
-  int nbr_skipped_states = 1e4;
-  double alpha = 0.1;
+  int nbr_skipped_states = 1e5;
+  double alpha = 0.145;
   int n_alpha = 1;//100;
   double delta = 1;
   double r1[3], r2[3];
   double E_sum = 0;
   int mod_factor = 1000;
-  int k_span = 300;
+  int k_span = 600;
   double mean_E=0;
   double mean_sq_E=0;
   double E_ik=0; 
@@ -134,7 +141,9 @@ int main () {
   // May be redunadant
 
   for (j=0; j < n_alpha; j++) { // for different alphas
-    alpha = 0.1;// 0.05+0.20/(n_alpha-1)*j;
+    if (n_alpha > 1) {
+      alpha = 0.05+0.20/(n_alpha-1)*j;
+    }
 
     /* Reset */
     E_sum = 0;
@@ -149,9 +158,9 @@ int main () {
     /* Throw away first states */
     for (i = 1; i < nbr_skipped_states+1; i++){
       next_state(r1, r2, alpha, delta, &count, q);
-      // fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
+      fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
       if (i%mod_factor == 0){
-	printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
+	//printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
       }
     }
 
@@ -237,7 +246,8 @@ int main () {
   printf("E is %f a.u. \n", E_sum/N);
   printf("Alpha is %f. \n", alpha);
   printf("The stepping percentage is %.0f%%\n",100*(double)count/N);
-
+  printf("The standard deviation is %f. \n", sqrt(var_I));
+  printf("The angle between the electrons is %f. \n",acos(calc_x(r1,r2))/PI*180);
   /* Free memory */
   free(E);
   
