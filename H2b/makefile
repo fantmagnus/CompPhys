@@ -19,3 +19,7 @@ clean:
 	rm -f *.o
 	touch *.c
 
+test:
+	make
+	./run
+
