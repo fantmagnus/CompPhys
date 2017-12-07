@@ -27,3 +27,34 @@ end
 plot(t,mean_v,'black-')
 plot(t,mean_v+std_v,'cyan-')
 plot(t,mean_v-std_v,'cyan-')
+%%
+clc
+close all
+clear all
+x_dist = importdata('x_dist.dat');
+v_dist = importdata('v_dist.dat');
+bins = 25; 
+figure(1)
+hold on 
+histogram(x_dist(6,:), bins,'Normalization','probability' )
+histogram(x_dist(5,:), bins,'Normalization','probability' )
+histogram(x_dist(4,:), bins, 'Normalization','probability')
+histogram(x_dist(3,:), bins ,'Normalization','probability' )
+histogram(x_dist(2,:), bins,'Normalization','probability' )
+histogram(x_dist(1,:), 100, 'Normalization','probability')
+ylim([0 0.13])
+xlim([-0.1 0.2])
+legend('t=1 ms','t=0.3 ms','t=0.2 ms','t=0.15 ms','t=0.05 ms','t=0 ms')
+
+figure(2)
+hold on 
+histogram(v_dist(6,:), bins,'Normalization','probability' )
+histogram(v_dist(5,:), bins,'Normalization','probability' )
+histogram(v_dist(4,:), bins, 'Normalization','probability')
+histogram(v_dist(3,:), bins ,'Normalization','probability' )
+histogram(v_dist(2,:), bins,'Normalization','probability' )
+histogram(v_dist(1,:), 20, 'Normalization','probability')
+ylim([0 0.13])
+xlim([-2 2.1])
+legend('t=1 ms','t=0.3 ms','t=0.2 ms','t=0.15 ms','t=0.05 ms','t=0 ms')
+%%

@@ -20,7 +20,7 @@ void gen_gaussian(double *G1, double *G2, gsl_rng *q){
 
 int main()  {
   int i,j;
-  int nbr_of_particles = 3000;
+  int nbr_of_particles = 1000;
   double v_T[nbr_of_particles];
   double x_T[nbr_of_particles];
   double v_tilde = 0;
@@ -53,6 +53,7 @@ int main()  {
   double *mean_v = malloc(N * sizeof(double));
   double mean_x_sq = 0;
   double mean_v_sq = 0;
+  int index=1;
 
   double *var_x = malloc(N * sizeof(double)); 
   double *var_v = malloc(N * sizeof(double));
@@ -61,8 +62,13 @@ int main()  {
   double (*v)[5] = malloc(sizeof(double[N][5]));
   double *a = malloc(nbr_of_particles * sizeof(double));
   
+  double (*x_all)[nbr_of_particles] = malloc(sizeof(double[6][nbr_of_particles]));
+  double (*v_all)[nbr_of_particles] = malloc(sizeof(double[6][nbr_of_particles]));
+  
   FILE* x_file = fopen("x_data.dat","w");
   FILE* v_file = fopen("v_data.dat","w");
+  FILE* x_dist_file = fopen("x_dist.dat", "w");
+  FILE* v_dist_file = fopen("v_dist.dat", "w");
 
   
  
@@ -76,6 +82,8 @@ int main()  {
     mean_x[0] += x_T[j]/nbr_of_particles; 
     mean_v[0] += v_T[j]/nbr_of_particles;
     a[j] = calc_a(x_T[j], f_0);
+    x_all[0][j] = x_T[j];
+    v_all[0][j] = v_T[j];
   }
   var_x[0] = 0;
   var_v[0] = 0;
@@ -99,11 +107,18 @@ int main()  {
       mean_v[i] += v_T[j]/nbr_of_particles;
       mean_x_sq += x_T[j] * x_T[j]/nbr_of_particles; 
       mean_v_sq += v_T[j] * v_T[j]/nbr_of_particles;
-
+      if(i*timestep == 0.05 || i*timestep == 0.15 || i*timestep == 0.2 || i*timestep == 0.3 || i*timestep == 1) {
+	x_all[index][j] = x_T[j];
+	v_all[index][j] = v_T[j];
+      }
+      
+      
       if (j < 5) {
 	x[i][j] = x_T[j];
 	v[i][j] = v_T[j];
       }
+
+       
     }
       var_x[i] = mean_x_sq - mean_x[i]*mean_x[i];
       var_v[i] = mean_v_sq - mean_v[i]*mean_v[i];
@@ -113,7 +128,12 @@ int main()  {
 	printf("\rProgress: Simulation %d %% complete  ",progress++); // Print progress of main loop
 	fflush(stdout);
       }
+
       
+      if(i*timestep == 0.05 || i*timestep == 0.15 || i*timestep == 0.2 || i*timestep == 0.3 || i*timestep == 1) {
+	printf("%d %f \n", index, timestep*i);
+	index += 1;
+      }
   }
   printf("\n");
 
@@ -129,8 +149,21 @@ int main()  {
     fprintf(x_file, "%e\t %e\n", mean_x[i], var_x[i]);
     fprintf(v_file, "%e\t %e\n", mean_v[i], var_v[i]);
   }
+  
+  for(i = 0; i < 6; i++) {
+    for (j = 0; j < nbr_of_particles; j++){ 
+      fprintf(x_dist_file, "%e \t", x_all[i][j]);
+      fprintf(v_dist_file, "%e \t", v_all[i][j]);
+    }
+    fprintf(x_dist_file, "\n");
+    fprintf(v_dist_file, "\n");
+  }
+
+  
   fclose(x_file);
   fclose(v_file);
+  fclose(x_dist_file);
+  fclose(v_dist_file);
 
   free(x);
   free(v);
