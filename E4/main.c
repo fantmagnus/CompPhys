@@ -39,9 +39,10 @@ int main()  {
   double sqrt_c_0 = sqrt(c_0);
   double R = 1.395; // mm
   double rho = 2.65e-15; // kg/mum^3
-  double m = rho*3*PI*R*R*R/3; // g
-  double T = 295; //K 
+  double m = rho*4*PI*R*R*R/3; // g
+  double T = 300; //K 
   double v_th = sqrt(k_B*T/m );
+  printf("%f\n",v_th);
   double current_time; 
   int N = 1e5;
   int progress = 0;

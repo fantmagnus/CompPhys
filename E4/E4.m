@@ -16,7 +16,7 @@ std_v=sqrt(var_v);
 index_B=zeros(1,6);
 index_A=zeros(1,6);
 for i=1:6
-   [a,I] = min(abs(t-tB(i)));
+   [a,I] = min(abs(t-tA(i)));
    index_B(i) = I;   
    [a,I] = min(abs(t-tA(i)));
    index_A(i) = I;
@@ -59,29 +59,30 @@ x_dist = importdata('x_dist.dat');
 v_dist = importdata('v_dist.dat');
 bins = 40;
 N = 6;
+
 figure(3)
 hold on 
-histogram(x_dist(1,:), 100, 'Normalization','probability')
+histogram(x_dist(1,:), 100, 'Normalization','pdf')
 for i=2:N
-    histogram(x_dist(i,:), bins,'Normalization','probability' ) 
+    histogram(x_dist(i,:), bins,'Normalization','pdf' ) 
 end
-ylim([0 0.13])
-xlim([-0.1 0.2])
-%legend('t=0 ms','t=0.05 ms','t=0.15 ms','t=0.2 ms','t=0.3 ms','t=9 ms')
-legend('t=0 ms','t=0.075 ms','t=0.3 ms','t=0.45 ms','t=0.9 ms','t=9 ms')
+ylim([0 37])
+xlim([-0.07 0.15])
+legend('t=0 ms','t=0.05 ms','t=0.15 ms','t=0.2 ms','t=0.3 ms','t=9 ms')
+%legend('t=0 ms','t=0.075 ms','t=0.3 ms','t=0.45 ms','t=0.9 ms','t=9 ms')
 xlabel('x [\mum]')
 title('p_x')
 
+
 figure(4)
 hold on 
-histogram(v_dist(1,:), 10, 'Normalization','probability')
+histogram(v_dist(1,:), 10, 'Normalization','pdf')
 for i=2:N
-    histogram(v_dist(i,:), bins,'Normalization','probability' )
+    histogram(v_dist(i,:), bins,'Normalization','pdf' )
 end
-ylim([0 0.15])
+ylim([0 2])
 xlim([-2 2.1])
-%legend('t=0 ms','t=0.05 ms','t=0.15 ms','t=0.2 ms','t=0.3 ms','t=9 ms')
-legend('t=0 ms','t=0.075 ms','t=0.3 ms','t=0.45 ms','t=0.9 ms','t=9 ms')
+legend('t=0 ms','t=0.05 ms','t=0.15 ms','t=0.2 ms','t=0.3 ms','t=9 ms')
+%legend('t=0 ms','t=0.075 ms','t=0.3 ms','t=0.45 ms','t=0.9 ms','t=9 ms')
 xlabel('v [\mum/ms]')
 title('p_v')
-%%
