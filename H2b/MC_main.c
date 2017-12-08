@@ -90,8 +90,8 @@ double dPhi(double r1[3], double r2[3], double alpha) {
 int main () {
   /*Variable declarations */
   int i,j,k;
-  int dyn = 0; //For dynamic alpha
-  int N = 1e6; 
+  int dyn = 1; //For dynamic alpha
+  int N = 1e8; 
   int count = 0;
   int progress = 0;
   int nbr_skipped_states = 1e5;
@@ -116,12 +116,13 @@ int main () {
   int n_s=12;
   double var_E, var_I;
   double inv_Hess = 1;
-  double beta = 0.8;
+  double beta = 0.9;
   double meanf_E;
   double meanf_div;
   double meanf_Ediv;
   double div_sum = 0;
-  double Ediv_sum = 0; 
+  double Ediv_sum = 0;
+  int n_mean_alpha=1;
  
   
   /* gsl random number setup */ 
@@ -135,7 +136,7 @@ int main () {
   FILE *dist_file = fopen("dist.dat","w");
   FILE *corr_file = fopen("corr.dat","w");
   FILE *corrfunc_file = fopen("phi.dat","w");
-  FILE *energy_file = fopen("E.dat","w");
+  FILE *energy_file = fopen("E_alpha.dat","w");
   FILE *block_file = fopen("S.dat","w");
   /* Set initial state */
   // May be redunadant
@@ -143,8 +144,9 @@ int main () {
   for (j=0; j < n_alpha; j++) { // for different alphas
     if (n_alpha > 1) {
       alpha = 0.05+0.20/(n_alpha-1)*j;
+      n_mean_alpha = 80;
     }
-
+    
     /* Reset */
     E_sum = 0;
     progress=0;
@@ -158,46 +160,47 @@ int main () {
     /* Throw away first states */
     for (i = 1; i < nbr_skipped_states+1; i++){
       next_state(r1, r2, alpha, delta, &count, q);
-      fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
+      //fprintf(energy_file,"%.7f\n", calc_E(r1,r2,alpha));
       if (i%mod_factor == 0){
 	//printf("Local energy after %d steps is %.5f\n",i,calc_E(r1,r2,alpha)); 
       }
     }
 
     count = 0;
-  
-    /* Step in configuration space */
-    for (i = 0; i < N; i++){
-      /* Metropolis algorithm */
-      next_state(r1, r2, alpha, delta, &count, q);
-      E[i] = calc_E(r1, r2, alpha);
-      E_sum += E[i];
-      div_sum += dPhi(r1, r2, alpha);
-      Ediv_sum += E[i]*dPhi(r1, r2, alpha);
-      if (n_alpha == 1){ // For fixed alpha simulations
-	fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
-	fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
-	fprintf(energy_file,"%.7f\n", E[i]);
-      }
-      if (i%((N-1)/100) == 0){
-	printf("\rProgress: Simulation %d of %d %d %% done  ",j+1,n_alpha,progress++); // Print progress of main loop
-	fflush(stdout);
-      }
-      mean_E += E[i]/N;
-      mean_sq_E += E[i]*E[i]/N;
-      if(dyn > 0) {
-	meanf_E = E_sum/(i+1);
-	meanf_div = div_sum/(i+1);
-	meanf_Ediv = Ediv_sum/(i+1);
-	alpha = alpha - inv_Hess*pow((i+1),-beta)*2*(meanf_Ediv - meanf_div*meanf_E);
-	
+    for (k = 0; k < n_mean_alpha; k++){
+      /* Step in configuration space */
+      for (i = 0; i < N; i++){
+	/* Metropolis algorithm */
+	next_state(r1, r2, alpha, delta, &count, q);
+	E[i] = calc_E(r1, r2, alpha);
+	E_sum += E[i];
+	div_sum += dPhi(r1, r2, alpha);
+	Ediv_sum += E[i]*dPhi(r1, r2, alpha);
+	if (n_alpha == 1){ // For fixed alpha simulations
+	  fprintf(dist_file,"%.4f\n%.4f\n", norm(r1), norm(r2));
+	  fprintf(corr_file,"%.4f\n", calc_x(r1,r2));
+	  fprintf(energy_file,"%.7f\n", E[i]);
+	}
+	  if (i%((N-1)/100) == 0){
+	    printf("\rProgress: Simulation %d of %d %d %% done  ",j+1,n_alpha,progress++); // Print progress of main loop
+	    fflush(stdout);
+	}
+	else
+	mean_E += E[i]/(N*n_mean_alpha);
+	mean_sq_E += E[i]*E[i]/(N*n_mean_alpha);
+	if(dyn > 0) {
+	  meanf_E = E_sum/(i+1);
+	  meanf_div = div_sum/(i+1);
+	  meanf_Ediv = Ediv_sum/(i+1);
+	  alpha = alpha - inv_Hess*pow((i+1),-beta)*2*(meanf_Ediv - meanf_div*meanf_E);
+	}
       }
     }
-   /* Calculate mean and variance */
+    /* Calculate mean and variance */
     var_E = mean_sq_E - mean_E*mean_E;
-    var_I = n_s*var_E/N;
+    var_I = n_s*var_E/sqrt(N*n_mean_alpha);
     if (n_alpha > 1){
-      fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/N, var_I);
+      fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/(N*n_mean_alpha), var_I);
     }
   }
   

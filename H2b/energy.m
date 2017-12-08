@@ -1,15 +1,25 @@
 %% E(alpha)
 clc, close all
-data = importdata('E.dat');
-alpha = data(:,1);
-E = data(:,2);
-var_E = 20*data(:,3);
-s=sqrt(var_E);
+data1 = importdata('E_alpha.dat');
+data2 = importdata('E2.dat');
+alpha = data1(:,1);
+alpha2 = data2(:,1);
+E = data1(:,2);
+E2 = data2(:,2);
+var_E = data1(:,3);
+var_E2 = data2(:,3);
 
-errorbar(alpha,E,var_E,'r.','vertical')
+hold on
+plot(alpha,E,'r')
+
+%%
+clf,clc
+errorbar(alpha,E,var_E,'r','vertical')
+hold on
+errorbar(alpha2(1:length(alpha)-1:length(alpha2)),E2(1:length(alpha)-1:length(alpha2)),var_E2(1:length(alpha)-1:length(alpha2)),'b.','vertical')
 %xlim([0.125 0.175])
-xlabel('$\alpha$','interpreter','LaTeX')
-ylabel('$E$ [a.u.]','interpreter','LaTeX')
+xlabel('$\alpha$','interpreter','LaTeX','FontSize',14)
+ylabel('$E$ [a.u.]','interpreter','LaTeX','FontSize',14)
 
 %% E_L
 clc, close all
