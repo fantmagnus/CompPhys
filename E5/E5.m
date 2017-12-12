@@ -66,13 +66,12 @@ A(1,2) = -1/(2*h^2);
 % epsilon
 [F,lambda] = eig(A);
 epsilon = lambda(1)
-f = F(:,1)/trapz(r,F(:,1));
-
-plot(r,f)
+f = -F(:,1)/sqrt(trapz(r,F(:,1).^2));
+R_0 = - f(1)/r(1)/(2*h*Z);
+plot(r,f./(sqrt(4*pi)*r))
 hold on
 f_anal = 1/sqrt(pi)*exp(-r);
-f_anal = f_anal/trapz(r,f_anal);
-plot(r,r.*f_anal,'--r')
+plot(r,f_anal,'--r')
 xlabel('r [a.u]')
 ylabel('E [a.u]')
 legend('FD solution', 'Analytic solution')
