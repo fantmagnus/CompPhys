@@ -46,7 +46,7 @@ close all,clc
 r_min = 0;
 r_max = 10;
 Z = 1;
-N = 1000;
+N =1000;
 r = linspace(r_min,r_max,N+2);
 r = r(2:end-1)';
 h = r(2) - r(1);
@@ -68,6 +68,8 @@ A(1,2) = -1/(2*h^2);
 epsilon = lambda(1,1)
 f = -F(:,1)/sqrt(trapz(r,F(:,1).^2));
 R_0 = Z*2*h*f(1)/r(1)+f(2)/r(2);
+R_0 = f(1)/r(1)*1/(1-Z*h);
+
 plot([0;r],[R_0/sqrt(4*pi);f./(sqrt(4*pi)*r)])
 hold on
 f_anal = 1/sqrt(pi)*exp(-r);
