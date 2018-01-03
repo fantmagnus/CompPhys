@@ -10,8 +10,8 @@ plot(k,phi,'-')
 plot([min(k) max(k)],[exp(-2) exp(-2)],'-r')
 xlim([0 150])
 
-xlabel('k','interpreter','LaTeX')
-ylabel('Correlation function $\Phi_k$','interpreter','LaTeX')
+xlabel('k','interpreter','LaTeX','FontSize',16)
+ylabel('Correlation function $\Phi_k$','interpreter','LaTeX','FontSize',16)
 
 dim = [.5 .01 .5 .5];
 str = 'exp(-2)';
@@ -30,5 +30,5 @@ S = data(:,2);
 Blim=150;
 figure(2)
 plot(B(1:Blim),S(1:Blim),'.')
-xlabel('$B$','interpreter','LaTeX')
-ylabel('Statistical inefficiency $n_s$','interpreter','LaTeX')
+xlabel('Block size $B$','interpreter','LaTeX','FontSize',16)
+ylabel('Statistical inefficiency $n_s$','interpreter','LaTeX','FontSize',16)

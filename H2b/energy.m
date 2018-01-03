@@ -16,18 +16,18 @@ plot(alpha,E,'r')
 clf,clc
 errorbar(alpha,E,var_E,'r','vertical')
 hold on
-errorbar(alpha2(1:length(alpha)-1:length(alpha2)),E2(1:length(alpha)-1:length(alpha2)),var_E2(1:length(alpha)-1:length(alpha2)),'b.','vertical')
+%errorbar(alpha2(1:length(alpha)-1:length(alpha2)),E2(1:length(alpha)-1:length(alpha2)),var_E2(1:length(alpha)-1:length(alpha2)),'b.','vertical')
 %xlim([0.125 0.175])
-xlabel('$\alpha$','interpreter','LaTeX','FontSize',14)
-ylabel('$E$ [a.u.]','interpreter','LaTeX','FontSize',14)
+xlabel('$\alpha$','interpreter','LaTeX','FontSize',16)
+ylabel('$E$ [a.u.]','interpreter','LaTeX','FontSize',16)
 
 %% E_L
 clc, close all
 data = importdata('E.dat');
 E = data(1:20000,1);
 plot(E)
-xlabel('Iteration','interpreter','LaTeX')
-ylabel('$E$ [a.u.]','interpreter','LaTeX')
+xlabel('Iteration','interpreter','LaTeX','FontSize',16)
+ylabel('$E$ [a.u.]','interpreter','LaTeX','FontSize',16)
 
 %% E independant runs.
 runs = 10;
@@ -39,4 +39,3 @@ var_E=[0.113638 0.113446 0.113689 0.113625 0.113621 0.113856 0.113784 0.113645 0
 E_mean = mean(E)
 E_variance = mean(var_E)*n_s/N_tot
 E_std = sqrt(E_variance)
-

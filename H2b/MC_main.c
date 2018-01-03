@@ -90,8 +90,8 @@ double dPhi(double r1[3], double r2[3], double alpha) {
 int main () {
   /*Variable declarations */
   int i,j,k;
-  int dyn = 1; //For dynamic alpha
-  int N = 1e8; 
+  int dyn = 0; //For dynamic alpha
+  int N = 1e7; 
   int count = 0;
   int progress = 0;
   int nbr_skipped_states = 1e5;
@@ -123,6 +123,7 @@ int main () {
   double div_sum = 0;
   double Ediv_sum = 0;
   int n_mean_alpha=1;
+  int error_est = 0;
  
   
   /* gsl random number setup */ 
@@ -136,7 +137,7 @@ int main () {
   FILE *dist_file = fopen("dist.dat","w");
   FILE *corr_file = fopen("corr.dat","w");
   FILE *corrfunc_file = fopen("phi.dat","w");
-  FILE *energy_file = fopen("E_alpha.dat","w");
+  FILE *energy_file = fopen("E.dat","w");
   FILE *block_file = fopen("S.dat","w");
   /* Set initial state */
   // May be redunadant
@@ -144,7 +145,7 @@ int main () {
   for (j=0; j < n_alpha; j++) { // for different alphas
     if (n_alpha > 1) {
       alpha = 0.05+0.20/(n_alpha-1)*j;
-      n_mean_alpha = 80;
+      n_mean_alpha = 40;    // Set number of runs done for each alpha
     }
     
     /* Reset */
@@ -167,7 +168,7 @@ int main () {
     }
 
     count = 0;
-    for (k = 0; k < n_mean_alpha; k++){
+    for (k = 0; k < n_mean_alpha; k++){ // Several runs for each alpha
       /* Step in configuration space */
       for (i = 0; i < N; i++){
 	/* Metropolis algorithm */
@@ -188,7 +189,7 @@ int main () {
 	else
 	mean_E += E[i]/(N*n_mean_alpha);
 	mean_sq_E += E[i]*E[i]/(N*n_mean_alpha);
-	if(dyn > 0) {
+	if(dyn > 0) { // For dynamic alpha
 	  meanf_E = E_sum/(i+1);
 	  meanf_div = div_sum/(i+1);
 	  meanf_Ediv = Ediv_sum/(i+1);
@@ -196,48 +197,50 @@ int main () {
 	}
       }
     }
-    /* Calculate mean and variance */
+    /* Calculate mean and variance */ 
     var_E = mean_sq_E - mean_E*mean_E;
-    var_I = n_s*var_E/sqrt(N*n_mean_alpha);
+    var_I = sqrt(var_E)/sqrt(N*n_mean_alpha/n_s); // standard deviation
     if (n_alpha > 1){
       fprintf(energy_file,"%.4f\t %.7f\t %.7f\n",alpha, E_sum/(N*n_mean_alpha), var_I);
     }
   }
-  
+ 
+	
   fclose(energy_file);
   fclose(corr_file);
   fclose(dist_file);
   /* Error estimate */
-
-  /* Calculate correlation function */
-  for(k = 0; k < k_span; k++) {
-    for(i = 0; i < N-k; i++) {
-      E_ik += E[i+k]*E[i];
-    }
-    E_ik = E_ik/(N-k);
-    Phi[k] = (E_ik - mean_E*mean_E)/(mean_sq_E - mean_E*mean_E);
-    fprintf(corrfunc_file, "%i \t %.6f \n", k, Phi[k]);
-  }
-  fclose(corrfunc_file);
-
-  /* Calcualte statistical inefficiency with block averaging */
-  for (b = 1; b < n_B; b++){
-    B = b*10; 
-    j_span = (int)N/B;
-    double *F = malloc(j_span * sizeof (double));
-    for (j = 0; j < j_span; j++){
-      for (i = 0; i < B; i++){
-	F[j] += E[j*B + i];
+  if (error_est == 1) {
+    /* Calculate correlation function */
+    for(k = 0; k < k_span; k++) {
+      for(i = 0; i < N-k; i++) {
+	E_ik += E[i+k]*E[i];
       }
-      F[j] = F[j]/B;
-      mean_F += F[j]/j_span;
-      mean_sq_F += F[j]*F[j]/j_span;
+      E_ik = E_ik/(N-k);
+      Phi[k] = (E_ik - mean_E*mean_E)/(mean_sq_E - mean_E*mean_E);
+      fprintf(corrfunc_file, "%i \t %.6f \n", k, Phi[k]);
     }
-    s[b] = B*(mean_sq_F - mean_F*mean_F)/(mean_sq_E - mean_E*mean_E);
-    fprintf(block_file, "%i \t %.6f \n", B, s[b]);
-    free(F);
-    mean_F = 0;
-    mean_sq_F = 0;
+    fclose(corrfunc_file);
+
+    /* Calcualte statistical inefficiency with block averaging */
+    for (b = 1; b < n_B; b++){
+      B = b*10; 
+      j_span = (int)N/B;
+      double *F = malloc(j_span * sizeof (double));
+      for (j = 0; j < j_span; j++){
+	for (i = 0; i < B; i++){
+	  F[j] += E[j*B + i];
+	}
+	F[j] = F[j]/B;
+	mean_F += F[j]/j_span;
+	mean_sq_F += F[j]*F[j]/j_span;
+      }
+      s[b] = B*(mean_sq_F - mean_F*mean_F)/(mean_sq_E - mean_E*mean_E);
+      fprintf(block_file, "%i \t %.6f \n", B, s[b]);
+      free(F);
+      mean_F = 0;
+      mean_sq_F = 0;
+    }
   }
   fclose(block_file);
  
@@ -249,7 +252,7 @@ int main () {
   printf("E is %f a.u. \n", E_sum/N);
   printf("Alpha is %f. \n", alpha);
   printf("The stepping percentage is %.0f%%\n",100*(double)count/N);
-  printf("The standard deviation is %f. \n", sqrt(var_I));
+  printf("The error is %f. \n", var_I);
   printf("The angle between the electrons is %f. \n",acos(calc_x(r1,r2))/PI*180);
   /* Free memory */
   free(E);

@@ -10,15 +10,15 @@ rho_cf=Z_cf^3*4*r.^2.*exp(-2*Z_cf*r);   % PDFs
 rho_vo=Z_vo^3*4*r.^2.*exp(-2*Z_vo*r);
 
 figure(1)
+clf
 hold on
-[h,x] = hist(data,1000);
-h=h/trapz(x,h);
-bar(x,h)
+histogram(data,100,'normalization','pdf','faceColor','y')
 plot(r,rho_cf,'b')
 plot(r,rho_vo,'r')
 
 
-xlabel('Distance to nucleus [a.u.]','interpreter','LaTeX')
+xlabel('Distance to nucleus [a.u.]','interpreter','LaTeX','fontSize',16)
+ylabel('Probability density','interpreter','LaTeX','fontSize',16)
 legend('Sampled data','Z=2','Z=27/16')
 
 %% Dist of x
@@ -32,7 +32,6 @@ h=h/trapz(x,h);
 bar(x,h)
 
 
-xlabel('$x=\cos\theta$','interpreter','LaTeX')
-
-
+xlabel('$x=\cos\theta$','interpreter','LaTeX','fontSize',16)
+ylabel('Probability density','interpreter','LaTeX','fontSize',16)
 
