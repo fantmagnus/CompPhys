@@ -16,45 +16,44 @@ double potential(double x) {
 double weight_func(double x, double E_T, double timestep) {
   double p = potential(x);
   double W = exp(-timestep*(p - E_T));
-  printf("%f\n", W);
   return W; 
 }
 
 /* Branching function */
-void make_branch(double walkers[], int *N, int index, double W,  gsl_rng *q) {
-  double x = walkers[index];
-  double u = gsl_rng_uniform(q);
-  int m = (W + u);
-  if (m == 0){
-    walkers[index] = walkers[*N-1];
-    *N = *N - 1;
-    double* new_walkers = realloc(walkers, *N*sizeof(double));
-    walkers = new_walkers;
+int make_branch(double walkers[], int m[], int *N, double E_T, double timestep, gsl_rng *q) {
+  int M = 0;
+  for (int i = 0; i < *N; i++) {
+    double u = gsl_rng_uniform(q);
+    m[i] = (int)(weight_func(walkers[i], E_T, timestep) + u);
+    M = M + m[i];
   }
-  else if (m > 1) {
-    *N  = *N + m-1;
-    double* new_walkers = realloc(walkers, *N*sizeof(double));
-    for(int i = 0; i < m; i++) {
-      new_walkers[*N-i-1] = x;
-    }
-    walkers = new_walkers;
-  }
-
-  
+  return M;
 }
 
+double calc_E(double E_T, int N, int N_0, double alpha, double timestep) {
+  double Nk = (double)N;
+  double N0 = (double)N_0;
+  return E_T-alpha/timestep*log(Nk/N0);
+}
+
+void diffusive_step(double walkers[], int index, double timestep, gsl_rng *q) {
+  double G = gsl_ran_ugaussian(q); // Gaussian rn
+  walkers[index] = walkers[index] + sqrt(timestep)*G;
+}
 
 int main() {
   /*Initializing variables */
   int i,j,k;
   int N_0 = 300;
   int N = N_0;
-  int cur_N;
-  double timestep = 0.1;
-  int nbr_of_timesteps = 10000;
+  int M;
+  int index;
+  int progress = 0;
+  double timestep = 0.0001;
+  double alpha = 0.01;
+  int nbr_of_timesteps = 100000;
   double E_T = 2;
-  double E_0 = 1/2;
-  double W;
+  double E_0 = 0.5;
   /* Initialize random number */
   const gsl_rng_type*o;
   gsl_rng *q;
@@ -67,24 +66,60 @@ int main() {
   /* Initialize walkers */
   for (i = 0; i < N_0; i++){
     double u = gsl_rng_uniform(q);
-    u = u; // Set range of random intial position
+    u = u*3; // Set range of random intial position
     if (i > N_0/2) { // Put every second walker at negative position
       u = -u;
     }
     walkers[i] = u;
-    //printf("%f\n", u);
   }
+  FILE* energy_file = fopen("E.dat","w");
+
+  N = N_0;
   /*--------------------*/
+  for (j = 0; j < nbr_of_timesteps; j++) {
+    E_T = calc_E(E_T, N, N_0, alpha, timestep);
+    fprintf(energy_file,"%f\n",E_T);
+    for (i = 0; i < N; i++){
+      diffusive_step(walkers, i, timestep, q);
+    }
+    double temp_walkers[N];
+    for (i = 0; i < N; i++){
+      temp_walkers[i] = walkers[i];
+    }
+    int m[N];
+    M = make_branch(walkers, m, &N, E_T, timestep, q);
+    walkers = realloc(walkers, M * sizeof(double));
+    index = 0;
+    for (i = 0; i < N; i++) {
+      for(k = 0; k < m[i]; k++) {
+	walkers[index] = temp_walkers[i];
+	index = index + 1;
+      }
+    }
+    N = M;
 
-  cur_N = N_0; 
-  for (i = 0; i < cur_N; i++){
-    W = weight_func(walkers[i], E_T, timestep);
-    make_branch(walkers, &N, i, W, q);
+    if (j%((nbr_of_timesteps)/100) == 0){
+      printf("\rProgress: Simulation %d %% done ",progress++); // Print progress of main loop
+      fflush(stdout);
+    }
   }
 
-  printf("%d\n",N);
-  
-
-
-    
+  printf("E_T = %f\n", E_T);
+  printf("It should be %f\n", E_0);
+  if (N == 0) {
+    printf("WALKER HOLOCAUST! N = 0\n");
+    double u = gsl_rng_uniform(q);
+    if (u < 0.3) {
+      printf("OH MY GOD!! \n");
+	}
+    else if (u > 0.5) {
+      printf("Oh my shit... \n");
+	}
+    else {
+      printf("AAAA!! \n");
+    }
+  }
+  else {
+    printf("There are %d walkers.\n", N);
+  } 
 }
