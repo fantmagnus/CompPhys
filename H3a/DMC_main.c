@@ -49,9 +49,9 @@ int main() {
   int M;
   int index;
   int progress = 0;
-  double timestep = 0.0001;
-  double alpha = 0.01;
-  int nbr_of_timesteps = 100000;
+  double timestep = 0.01;
+  double alpha = 0.001;
+  int nbr_of_timesteps = 10000;
   double E_T = 2;
   double E_0 = 0.5;
   /* Initialize random number */
@@ -73,6 +73,7 @@ int main() {
     walkers[i] = u;
   }
   FILE* energy_file = fopen("E.dat","w");
+  FILE* walkers_file = fopen("M.dat","w");
 
   N = N_0;
   /*--------------------*/
@@ -96,12 +97,15 @@ int main() {
 	index = index + 1;
       }
     }
+    fprintf(walkers_file, "%d\t %f\n", N, timestep*j);
     N = M;
 
     if (j%((nbr_of_timesteps)/100) == 0){
       printf("\rProgress: Simulation %d %% done ",progress++); // Print progress of main loop
       fflush(stdout);
     }
+    free(temp_walkers);
+    free(m);
   }
 
   printf("E_T = %f\n", E_T);
