@@ -82,11 +82,11 @@ int main() {
     for (i = 0; i < N; i++){
       diffusive_step(walkers, i, timestep, q);
     }
-    double temp_walkers[N];
+    double* temp_walkers = malloc(N * sizeof(double));
     for (i = 0; i < N; i++){
       temp_walkers[i] = walkers[i];
     }
-    int m[N];
+    int* m = malloc(N * sizeof(double));
     M = make_branch(walkers, m, &N, E_T, timestep, q);
     walkers = realloc(walkers, M * sizeof(double));
     index = 0;
