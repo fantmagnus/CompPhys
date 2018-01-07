@@ -30,6 +30,28 @@ int make_branch(double walkers[], int m[], int *N, double E_T, double timestep, 
   return M;
 }
 
+void place_bin(double bins[], double walkers[], int nbr_of_bins, double x_min, double x_max, int N) {
+  double size_of_bin = (x_max-x_min)/nbr_of_bins; 
+  for(int i = 0; i < N; i++) {
+    //printf("%f\n ",walkers[i]);
+    int bool = 1;
+    int index = 0;
+    double x = x_min;
+    if(walkers[i] > x_max || walkers[i] < x_min) {
+      bool = 0; 
+    }
+    while (bool == 1) {
+      if(walkers[i] > x && walkers[i] < x + (double)size_of_bin) {
+	bins[index] += 1;
+	bool = 0; 
+      }
+      index += 1;
+      x = x + size_of_bin;
+      //printf("%f\r ",x);
+    }
+  }
+}
+
 double calc_E(double E_T, int N, int N_0, double alpha, double timestep) {
   double Nk = (double)N;
   double N0 = (double)N_0;
@@ -49,12 +71,17 @@ int main() {
   int M;
   int index;
   int progress = 0;
-  double timestep = 0.0525;
-  double alpha = 0.0033 * timestep;
+  double timestep = 0.01;
+  double alpha = 0.0001;
   int nbr_of_timesteps = 22000;
   int nbr_of_eq_steps = 4000;
   double E_T = 0;
   double E_0 = 0.5;
+  double x_min = -5;
+  double x_max = 5;
+  int nbr_of_bins = 100;
+  double size_of_bin = (x_max-x_min)/nbr_of_bins;
+  double bin_sum = 0;
   /* Initialize random number */
   const gsl_rng_type*o;
   gsl_rng *q;
@@ -64,24 +91,30 @@ int main() {
   gsl_rng_set(q, time(NULL));
   /*---------------------------*/
   double* walkers = malloc(N_0 * sizeof(double));
+  double* bins = malloc(nbr_of_bins * sizeof(double));
   /* Initialize walkers */
   for (i = 0; i < N_0; i++){
     double u = gsl_rng_uniform(q);
+    double G = gsl_ran_ugaussian(q);
     u = u*3; // Set range of random intial position
     if (i > N_0/2) { // Put every second walker at negative position
       u = -u;
     }
-    walkers[i] = u;
+    walkers[i] = G;
+    
   }
   FILE* energy_file = fopen("E.dat","w");
   FILE* walkers_file = fopen("M.dat","w");
-
+  FILE* dist_file = fopen("dist.dat","w");
+  FILE* bin_file = fopen("bin.dat","w");
+  
   N = N_0;
   /*--------------------*/
   for (j = 0; j < nbr_of_timesteps; j++) {
     E_T = calc_E(E_T, N, N_0, alpha, timestep);
     if (j > nbr_of_eq_steps - 1) {
       fprintf(energy_file,"%f\t %f\n", E_T, timestep*j);
+      place_bin(bins, walkers, nbr_of_bins, x_min, x_max, N);
     }
     for (i = 0; i < N; i++){
       diffusive_step(walkers, i, timestep, q);
@@ -111,6 +144,25 @@ int main() {
     free(m);
   }
 
+  for (i = 0; i < nbr_of_bins; i++) {
+    bins[i] = bins[i]/(nbr_of_timesteps);
+    bin_sum +=  bins[i];    
+  }
+  
+  for (i = 0; i < nbr_of_bins; i++) {
+    bins[i] = bins[i]/(bin_sum*size_of_bin);
+    bins[i] = bins[i] * bins[i];
+  }
+  
+  for (i = 0; i < N; i++){
+    fprintf(dist_file,"%f\n", walkers[i]);
+  }
+
+  
+  for (i = 0; i < nbr_of_bins; i++){
+    fprintf(bin_file,"%f\t %f\n", x_min+i*size_of_bin+size_of_bin/2, bins[i] );
+  }
+  
   printf("E_T = %f\n", E_T);
   printf("It should be %f\n", E_0);
   if (N == 0) {
@@ -128,5 +180,6 @@ int main() {
   }
   else {
     printf("There are %d walkers.\n", N);
-  } 
+  }
+  printf("Sum of bin times bin size is %f\n", size_of_bin*bin_sum); 
 }
