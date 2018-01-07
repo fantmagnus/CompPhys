@@ -49,10 +49,11 @@ int main() {
   int M;
   int index;
   int progress = 0;
-  double timestep = 0.01;
-  double alpha = 0.001;
-  int nbr_of_timesteps = 10000;
-  double E_T = 2;
+  double timestep = 0.0525;
+  double alpha = 0.0033 * timestep;
+  int nbr_of_timesteps = 22000;
+  int nbr_of_eq_steps = 4000;
+  double E_T = 0;
   double E_0 = 0.5;
   /* Initialize random number */
   const gsl_rng_type*o;
@@ -79,7 +80,9 @@ int main() {
   /*--------------------*/
   for (j = 0; j < nbr_of_timesteps; j++) {
     E_T = calc_E(E_T, N, N_0, alpha, timestep);
-    fprintf(energy_file,"%f\n",E_T);
+    if (j > nbr_of_eq_steps - 1) {
+      fprintf(energy_file,"%f\t %f\n", E_T, timestep*j);
+    }
     for (i = 0; i < N; i++){
       diffusive_step(walkers, i, timestep, q);
     }
